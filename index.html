@@ -5,23 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dr-Inovates</title>
     <link rel="stylesheet" href="styles.css"> <!-- Link to the CSS file -->
-    <script src="https://cdn.jsdelivr.net/npm/aws-amplify@4.3.0"></script>
-
+    <script src="https://cdn.jsdelivr.net/npm/aws-amplify@4.3.0"></script> <!-- AWS Amplify CDN -->
 </head>
 <body>
     <!-- Header Section -->
     <header>
-    <img src="pic1.jpeg" alt="Dr-Inovates Logo" style="width: 100%; height: auto;">
-    <nav>
-        <ul>
-            <li><a href="#home">Home</a></li>
-            <li><a href="#about">About</a></li>
-            <li><a href="#services">Services</a></li>
-            <li><a href="#contact">Contact</a></li>
-        </ul>
-    </nav>
-</header>
-
+        <img src="pic1.jpeg" alt="Dr-Inovates Logo" style="width: 100%; height: auto;">
+        <nav>
+            <ul>
+                <li><a href="#home">Home</a></li>
+                <li><a href="#about">About</a></li>
+                <li><a href="#services">Services</a></li>
+                <li><a href="#contact">Contact</a></li>
+            </ul>
+        </nav>
+    </header>
 
     <!-- Main Content Section -->
     <main>
@@ -51,13 +49,22 @@
                 <button type="submit">Send Message</button>
             </form>
         </section>
+
+        <!-- Voice Recording and Transcription Section -->
+        <section id="voice-recording">
+            <h2>Voice Recording and Transcription</h2>
+            <button id="voiceBtn">Start Recording</button>
+            <textarea id="output" placeholder="Transcription will appear here..." readonly></textarea>
+        </section>
     </main>
 
     <!-- Footer Section -->
     <footer>
         <p>&copy; 2025 Dr-Inovates. All rights reserved.</p>
     </footer>
-     <script>
+
+    <!-- AWS Amplify Configuration -->
+    <script>
         // Configure AWS Amplify with your AWS resources
         Amplify.configure({
             Auth: {
@@ -71,6 +78,96 @@
                 region: 'ap-southeast-2', // Your S3 bucket region
             },
         });
+
+        const voiceButton = document.getElementById('voiceBtn');
+        const outputTextBox = document.getElementById('output');
+        let mediaRecorder;
+        let audioChunks = [];
+
+        // Voice Recording Functionality
+        voiceButton.addEventListener('click', async () => {
+            if (mediaRecorder && mediaRecorder.state === "recording") {
+                mediaRecorder.stop();
+                voiceButton.textContent = "Start Recording";
+            } else {
+                audioChunks = [];
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+
+                mediaRecorder.ondataavailable = event => {
+                    audioChunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = async () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    uploadToS3(audioBlob);
+                };
+
+                mediaRecorder.start();
+                voiceButton.textContent = "Stop Recording";
+            }
+        });
+
+        // Upload Recorded Audio to S3
+        async function uploadToS3(audioBlob) {
+            const fileName = `recordings/audio_${Date.now()}.wav`;
+
+            try {
+                const result = await Amplify.Storage.put(fileName, audioBlob, {
+                    contentType: 'audio/wav',
+                });
+
+                console.log("Audio uploaded:", result.key);
+                startTranscriptionJob(result.key);
+            } catch (error) {
+                console.error("Error uploading audio:", error);
+            }
+        }
+
+        // Start Amazon Transcribe Job
+        async function startTranscriptionJob(audioKey) {
+            const transcribe = new AWS.TranscribeService();
+            const audioUrl = `https://pm-transcribe-audio.s3.ap-southeast-2.amazonaws.com/${audioKey}`;
+
+            const params = {
+                LanguageCode: 'en-US',
+                Media: { MediaFileUri: audioUrl },
+                TranscriptionJobName: `transcription-${Date.now()}`,
+                OutputBucketName: 'pm-transcribe-audio',
+            };
+
+            try {
+                const data = await transcribe.startTranscriptionJob(params).promise();
+                console.log("Transcription job started:", data);
+                checkTranscriptionStatus(data.TranscriptionJob.TranscriptionJobName);
+            } catch (error) {
+                console.error("Error starting transcription job:", error);
+            }
+        }
+
+        // Poll Amazon Transcribe Job Status
+        async function checkTranscriptionStatus(jobName) {
+            const transcribe = new AWS.TranscribeService();
+
+            const params = { TranscriptionJobName: jobName };
+
+            try {
+                const data = await transcribe.getTranscriptionJob(params).promise();
+                if (data.TranscriptionJob.TranscriptionJobStatus === "COMPLETED") {
+                    const transcriptUrl = data.TranscriptionJob.Transcript.TranscriptFileUri;
+                    fetch(transcriptUrl)
+                        .then(response => response.json())
+                        .then(data => {
+                            outputTextBox.value = data.results.transcripts[0].transcript;
+                        });
+                } else {
+                    console.log("Transcription in progress...");
+                    setTimeout(() => checkTranscriptionStatus(jobName), 5000);
+                }
+            } catch (error) {
+                console.error("Error checking transcription status:", error);
+            }
+        }
     </script>
 </body>
 </html>
