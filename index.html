@@ -55,7 +55,15 @@
 
                     // Request access to the microphone
                     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    console.log("Media stream obtained: ", stream);  // Log the stream
+
+                    // Check if we successfully get a stream
+                    if (!stream) {
+                        throw new Error("No media stream available");
+                    }
+
                     mediaRecorder = new MediaRecorder(stream);
+                    console.log("MediaRecorder initialized: ", mediaRecorder);  // Log the recorder
 
                     // Collect audio data in chunks
                     mediaRecorder.ondataavailable = event => {
