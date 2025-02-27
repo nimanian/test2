@@ -7,7 +7,6 @@
     <link rel="stylesheet" href="styles.css"> <!-- Link to the CSS file -->
     <script src="https://cdn.jsdelivr.net/npm/aws-amplify@4.3.0"></script> <!-- AWS Amplify CDN -->
     <style>
-        /* Ensure visibility of the voice recording button and transcription area */
         #voice-recording {
             margin: 20px;
             padding: 10px;
@@ -106,14 +105,14 @@
         // Configure AWS Amplify with your AWS resources
         Amplify.configure({
             Auth: {
-                identityPoolId: 'ap-southeast-2:9f80439c-b3d0-446e-97a0-be57af776fa2', // Your Cognito Identity Pool ID
-                region: 'ap-southeast-2', // Your AWS region
-                userPoolId: 'ap-southeast-2_MByupr5X6', // Your Cognito User Pool ID
-                userPoolWebClientId: '38q4eik7q85348vem57g3g40b9', // Your App Client ID
+                identityPoolId: 'ap-southeast-2:9f80439c-b3d0-446e-97a0-be57af776fa2',
+                region: 'ap-southeast-2',
+                userPoolId: 'ap-southeast-2_MByupr5X6',
+                userPoolWebClientId: '38q4eik7q85348vem57g3g40b9',
             },
             Storage: {
-                bucket: 'pm-transcribe-audio',  // Your S3 bucket name
-                region: 'ap-southeast-2', // Your S3 bucket region
+                bucket: 'pm-transcribe-audio',
+                region: 'ap-southeast-2',
             },
         });
 
@@ -124,25 +123,35 @@
 
         // Voice Recording Functionality
         voiceButton.addEventListener('click', async () => {
-            if (mediaRecorder && mediaRecorder.state === "recording") {
-                mediaRecorder.stop();
-                voiceButton.textContent = "Start Recording";
-            } else {
-                audioChunks = [];
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                mediaRecorder = new MediaRecorder(stream);
+            try {
+                if (mediaRecorder && mediaRecorder.state === "recording") {
+                    mediaRecorder.stop();
+                    voiceButton.textContent = "Start Recording";
+                } else {
+                    audioChunks = [];
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
 
-                mediaRecorder.ondataavailable = event => {
-                    audioChunks.push(event.data);
-                };
+                    mediaRecorder.ondataavailable = event => {
+                        audioChunks.push(event.data);
+                    };
 
-                mediaRecorder.onstop = async () => {
-                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-                    uploadToS3(audioBlob);
-                };
+                    mediaRecorder.onstart = () => {
+                        console.log("Recording started...");
+                    };
 
-                mediaRecorder.start();
-                voiceButton.textContent = "Stop Recording";
+                    mediaRecorder.onstop = async () => {
+                        console.log("Recording stopped.");
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                        await uploadToS3(audioBlob);
+                    };
+
+                    mediaRecorder.start();
+                    voiceButton.textContent = "Stop Recording";
+                }
+            } catch (error) {
+                console.error("Error accessing microphone:", error);
+                alert("Please grant microphone access.");
             }
         });
 
@@ -156,7 +165,7 @@
                 });
 
                 console.log("Audio uploaded:", result.key);
-                startTranscriptionJob(result.key);
+                await startTranscriptionJob(result.key);
             } catch (error) {
                 console.error("Error uploading audio:", error);
             }
