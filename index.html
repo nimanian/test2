@@ -6,6 +6,44 @@
     <title>Dr-Inovates</title>
     <link rel="stylesheet" href="styles.css"> <!-- Link to the CSS file -->
     <script src="https://cdn.jsdelivr.net/npm/aws-amplify@4.3.0"></script> <!-- AWS Amplify CDN -->
+    <style>
+        /* Ensure visibility of the voice recording button and transcription area */
+        #voice-recording {
+            margin: 20px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        #voiceBtn {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+
+        #voiceBtn:hover {
+            background-color: #45a049;
+        }
+
+        #output {
+            width: 100%;
+            height: 150px;
+            margin-top: 10px;
+            padding: 10px;
+            font-size: 16px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            resize: none;
+        }
+    </style>
 </head>
 <body>
     <!-- Header Section -->
