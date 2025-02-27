@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dr-Inovates</title>
     <link rel="stylesheet" href="styles.css"> <!-- Link to the CSS file -->
+    <script src="https://cdn.jsdelivr.net/npm/aws-amplify@4.3.0"></script>
+
 </head>
 <body>
     <!-- Header Section -->
@@ -55,5 +57,20 @@
     <footer>
         <p>&copy; 2025 Dr-Inovates. All rights reserved.</p>
     </footer>
+     <script>
+        // Configure AWS Amplify with your AWS resources
+        Amplify.configure({
+            Auth: {
+                identityPoolId: 'ap-southeast-2:9f80439c-b3d0-446e-97a0-be57af776fa2', // Your Cognito Identity Pool ID
+                region: 'ap-southeast-2', // Your AWS region
+                userPoolId: 'ap-southeast-2_MByupr5X6', // Your Cognito User Pool ID
+                userPoolWebClientId: '38q4eik7q85348vem57g3g40b9', // Your App Client ID
+            },
+            Storage: {
+                bucket: 'pm-transcribe-audio',  // Your S3 bucket name
+                region: 'ap-southeast-2', // Your S3 bucket region
+            },
+        });
+    </script>
 </body>
 </html>
