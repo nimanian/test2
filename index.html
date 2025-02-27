@@ -45,12 +45,15 @@
         // When the button is clicked, start or stop the recording
         voiceButton.addEventListener('click', async () => {
             try {
+                // Check if MediaRecorder is already recording
                 if (mediaRecorder && mediaRecorder.state === "recording") {
-                    mediaRecorder.stop();
-                    voiceButton.textContent = "Start Recording";
-                    statusText.textContent = "Recording stopped.";
+                    mediaRecorder.stop();  // Stop recording
+                    voiceButton.textContent = "Start Recording";  // Change button text
+                    statusText.textContent = "Recording stopped.";  // Update status
                 } else {
-                    audioChunks = [];
+                    audioChunks = [];  // Clear previous audio chunks
+
+                    // Request access to the microphone
                     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                     mediaRecorder = new MediaRecorder(stream);
 
@@ -63,7 +66,7 @@
                     mediaRecorder.onstop = async () => {
                         const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
                         const audioUrl = URL.createObjectURL(audioBlob);
-                        audioPlayback.src = audioUrl; // Play the recorded audio
+                        audioPlayback.src = audioUrl; // Set the audio URL to the playback element
                         statusText.textContent = "Recording stopped. Audio is ready to play.";
 
                         // Upload audio to S3
@@ -72,8 +75,8 @@
 
                     // Start recording
                     mediaRecorder.start();
-                    voiceButton.textContent = "Stop Recording";
-                    statusText.textContent = "Recording...";
+                    voiceButton.textContent = "Stop Recording";  // Change button text
+                    statusText.textContent = "Recording...";  // Update status
                 }
             } catch (error) {
                 console.error("Error accessing microphone:", error);
