@@ -3,218 +3,65 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dr-Inovates</title>
-    <link rel="stylesheet" href="styles.css"> <!-- Link to the CSS file -->
-    <script src="https://cdn.jsdelivr.net/npm/aws-amplify@4.3.0"></script> <!-- AWS Amplify CDN -->
-    <style>
-        #voice-recording {
-            margin: 20px;
-            padding: 10px;
-            background-color: #f9f9f9;
-            border-radius: 5px;
-            border: 1px solid #ddd;
-            max-width: 600px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-
-        #voiceBtn {
-            padding: 10px 20px;
-            font-size: 16px;
-            cursor: pointer;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 5px;
-        }
-
-        #voiceBtn:hover {
-            background-color: #45a049;
-        }
-
-        #output {
-            width: 100%;
-            height: 150px;
-            margin-top: 10px;
-            padding: 10px;
-            font-size: 16px;
-            border-radius: 5px;
-            border: 1px solid #ddd;
-            resize: none;
-        }
-    </style>
+    <title>Test Voice Recording</title>
+    <script src="https://cdn.jsdelivr.net/npm/aws-amplify@4.3.0"></script>
 </head>
 <body>
     <!-- Header Section -->
     <header>
-        <img src="pic1.jpeg" alt="Dr-Inovates Logo" style="width: 100%; height: auto;">
-        <nav>
-            <ul>
-                <li><a href="#home">Home</a></li>
-                <li><a href="#about">About</a></li>
-                <li><a href="#services">Services</a></li>
-                <li><a href="#contact">Contact</a></li>
-            </ul>
-        </nav>
+        <h1>Test Voice Recording</h1>
     </header>
 
-    <!-- Main Content Section -->
-    <main>
-        <section id="home">
-            <h1>Welcome to Dr-Inovates</h1>
-            <p>Your trusted partner in innovative medical solutions.</p>
-        </section>
+    <!-- Voice Recording Section -->
+    <section id="voice-recording">
+        <h2>Voice Recording</h2>
+        <button id="voiceBtn">Start Recording</button>
+        <p id="status"></p> <!-- Status message -->
+        <audio id="audioPlayback" controls></audio> <!-- For playback -->
+    </section>
 
-        <section id="about">
-            <h2>About Dr-Inovates</h2>
-            <p>Learn more about the doctor and the mission of Dr-Inovates.</p>
-        </section>
-
-        <section id="services">
-            <h2>Our Services</h2>
-            <p>Discover the services we offer to enhance your medical experience.</p>
-        </section>
-
-        <section id="contact">
-            <h2>Contact Us</h2>
-            <form>
-                <label for="name">Name:</label>
-                <input type="text" id="name" name="name">
-                <label for="email">Email:</label>
-                <input type="email" id="email" name="email">
-                <textarea name="message" id="message" rows="4" placeholder="Your message"></textarea>
-                <button type="submit">Send Message</button>
-            </form>
-        </section>
-
-        <!-- Voice Recording and Transcription Section -->
-        <section id="voice-recording">
-            <h2>Voice Recording and Transcription</h2>
-            <button id="voiceBtn">Start Recording</button>
-            <textarea id="output" placeholder="Transcription will appear here..." readonly></textarea>
-        </section>
-    </main>
-
-    <!-- Footer Section -->
-    <footer>
-        <p>&copy; 2025 Dr-Inovates. All rights reserved.</p>
-    </footer>
-
-    <!-- AWS Amplify Configuration -->
     <script>
-        // Configure AWS Amplify with your AWS resources
-        Amplify.configure({
-            Auth: {
-                identityPoolId: 'ap-southeast-2:9f80439c-b3d0-446e-97a0-be57af776fa2',
-                region: 'ap-southeast-2',
-                userPoolId: 'ap-southeast-2_MByupr5X6',
-                userPoolWebClientId: '38q4eik7q85348vem57g3g40b9',
-            },
-            Storage: {
-                bucket: 'pm-transcribe-audio',
-                region: 'ap-southeast-2',
-            },
-        });
-
         const voiceButton = document.getElementById('voiceBtn');
-        const outputTextBox = document.getElementById('output');
+        const statusText = document.getElementById('status');
+        const audioPlayback = document.getElementById('audioPlayback');
         let mediaRecorder;
         let audioChunks = [];
 
-        // Voice Recording Functionality
+        // When the button is clicked, start or stop the recording
         voiceButton.addEventListener('click', async () => {
             try {
                 if (mediaRecorder && mediaRecorder.state === "recording") {
                     mediaRecorder.stop();
                     voiceButton.textContent = "Start Recording";
+                    statusText.textContent = "Recording stopped.";
                 } else {
                     audioChunks = [];
                     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                     mediaRecorder = new MediaRecorder(stream);
 
+                    // Collect audio data in chunks
                     mediaRecorder.ondataavailable = event => {
                         audioChunks.push(event.data);
                     };
 
-                    mediaRecorder.onstart = () => {
-                        console.log("Recording started...");
-                    };
-
-                    mediaRecorder.onstop = async () => {
-                        console.log("Recording stopped.");
+                    // When recording stops, create a blob and enable playback
+                    mediaRecorder.onstop = () => {
                         const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-                        await uploadToS3(audioBlob);
+                        const audioUrl = URL.createObjectURL(audioBlob);
+                        audioPlayback.src = audioUrl; // Play the recorded audio
+                        statusText.textContent = "Recording stopped. Audio is ready to play.";
                     };
 
+                    // Start recording
                     mediaRecorder.start();
                     voiceButton.textContent = "Stop Recording";
+                    statusText.textContent = "Recording...";
                 }
             } catch (error) {
                 console.error("Error accessing microphone:", error);
-                alert("Please grant microphone access.");
+                statusText.textContent = "Error accessing microphone. Please check permissions.";
             }
         });
-
-        // Upload Recorded Audio to S3
-        async function uploadToS3(audioBlob) {
-            const fileName = `recordings/audio_${Date.now()}.wav`;
-
-            try {
-                const result = await Amplify.Storage.put(fileName, audioBlob, {
-                    contentType: 'audio/wav',
-                });
-
-                console.log("Audio uploaded:", result.key);
-                await startTranscriptionJob(result.key);
-            } catch (error) {
-                console.error("Error uploading audio:", error);
-            }
-        }
-
-        // Start Amazon Transcribe Job
-        async function startTranscriptionJob(audioKey) {
-            const transcribe = new AWS.TranscribeService();
-            const audioUrl = `https://pm-transcribe-audio.s3.ap-southeast-2.amazonaws.com/${audioKey}`;
-
-            const params = {
-                LanguageCode: 'en-US',
-                Media: { MediaFileUri: audioUrl },
-                TranscriptionJobName: `transcription-${Date.now()}`,
-                OutputBucketName: 'pm-transcribe-audio',
-            };
-
-            try {
-                const data = await transcribe.startTranscriptionJob(params).promise();
-                console.log("Transcription job started:", data);
-                checkTranscriptionStatus(data.TranscriptionJob.TranscriptionJobName);
-            } catch (error) {
-                console.error("Error starting transcription job:", error);
-            }
-        }
-
-        // Poll Amazon Transcribe Job Status
-        async function checkTranscriptionStatus(jobName) {
-            const transcribe = new AWS.TranscribeService();
-
-            const params = { TranscriptionJobName: jobName };
-
-            try {
-                const data = await transcribe.getTranscriptionJob(params).promise();
-                if (data.TranscriptionJob.TranscriptionJobStatus === "COMPLETED") {
-                    const transcriptUrl = data.TranscriptionJob.Transcript.TranscriptFileUri;
-                    fetch(transcriptUrl)
-                        .then(response => response.json())
-                        .then(data => {
-                            outputTextBox.value = data.results.transcripts[0].transcript;
-                        });
-                } else {
-                    console.log("Transcription in progress...");
-                    setTimeout(() => checkTranscriptionStatus(jobName), 5000);
-                }
-            } catch (error) {
-                console.error("Error checking transcription status:", error);
-            }
-        }
     </script>
 </body>
 </html>
